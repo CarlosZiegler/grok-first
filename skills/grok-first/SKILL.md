@@ -1,7 +1,7 @@
 ---
 name: grok-first
-description: "Use when Claude Code should delegate scoped coding work to Grok Build CLI."
-version: 1.0.0
+description: "Use when Claude Code should delegate implementation, fixes, exploration, and approved git mechanics to Grok Build CLI while Claude specifies, decides, reviews, and verifies."
+version: 1.1.0
 author: Carlos Ziegler
 license: MIT
 metadata:
@@ -10,161 +10,266 @@ metadata:
 
 # Grok First
 
-## Purpose
+## Hard Gate
 
-Use Grok Build CLI as Claude Code's implementation worker. Claude Code owns the
-brief, architecture, constraints, review, and final decision; Grok owns a
-well-scoped execution pass in the target repository.
+Use this skill for hands-on delegation only when the active harness is **Claude
+Code** and `command grok` is available. Before the first delegation in a batch,
+run:
 
-This is delegation, not a hidden model swap: Claude Code remains the active
-harness and must review the resulting diff and test evidence before reporting
-completion.
+```bash
+command -v grok
+grok --version
+```
 
-## When to Use
+If Grok is unavailable, unauthenticated, or its version check fails, report the
+blocker or continue the work directly in Claude Code. Do not guess a fallback
+binary or authentication method.
 
-Delegate to Grok by default when the task is a clear work order:
+Every other harness — Grok itself, Codex, ChatGPT, Pi, or another routed agent
+— works directly and must not invoke Grok CLI for hands-on self-delegation.
+This prevents recursive delegation and invisible work. There is no equivalent
+of Codex's `ANTHROPIC_BASE_URL` router gate verified for Grok; do not invent one.
 
-- implementation from an agreed specification
-- bounded bug fixes with a known reproduction or diagnosis target
-- refactors, mechanical migrations, dependency/tooling work
-- focused test writing and test/lint/typecheck repairs
-- read-heavy exploration where the answer is grounded in repository files
+An independent, repository-provided review workflow may always be used after a
+frozen change set. This skill does **not** claim that Grok provides a built-in
+`autoreview` command.
 
-Keep the work in Claude Code when it requires architectural decisions, product
-or UX judgment, secrets or account access, releases/publishing, destructive
-operations, or an edit so small that delegation costs more than doing it.
+## Ownership and Route
 
-For a mixed task, first decide the design in Claude Code, then hand Grok a
-frozen specification.
+Claude Code thinks, specifies, decides, and verifies. Grok types, explores, and
+executes a frozen work order.
 
-## Preconditions
+Delegate to Grok by default when the prompt is a clear work order:
 
-Before delegation, verify all of the following:
+- implementation from a frozen specification; refactors; mechanical migrations
+- bug fixes with a known reproduction, or diagnosis followed by a bounded fix
+- CI, lint, type, and test failures; focused test writing or coverage fills
+- dependency updates, scripts, and tooling
+- read-heavy repository exploration when raw reading greatly outweighs the
+  resulting answer
+- git mechanics — rebase, merge-conflict resolution, and the repository's land
+  workflow — are **mandatory Grok delegations**, never direct Claude execution,
+  once Claude has made the land decision and every required pre-land gate passes
 
-1. The active harness is Claude Code and `grok` is available on `PATH`.
-2. `grok --version` succeeds.
-3. The target directory is explicit and is the only repository Grok may alter.
-4. The work order states the goal, relevant paths, constraints, non-goals,
-   proof command(s), and the requested final report.
+For an approved land operation, send **one self-contained order** covering:
+rebase → resolve → push → confirm a CI run attached to the exact head SHA →
+wait for **successful/green** CI → land. If that exact-head run fails, is
+cancelled, or never attaches, stop and report; do not land. Do not bounce this
+sequence back to Claude mid-flight. Claude retains the decision to land and must
+review the outcome.
 
-If any prerequisite fails, do not substitute a guessed command. Explain the
-blocker or continue directly in Claude Code.
+When waiting for CI, precheck that the PR is mergeable, confirm a run attached
+to the exact head SHA before polling, report every terminal state, bound the
+wait, and prefer a repository watcher script when one exists.
 
-## Delegation Contract
+Keep in Claude Code:
 
-Grok starts a fresh headless session with no knowledge of the Claude Code
-conversation. Write a self-contained work order. Include:
+- architecture, API and UX decisions, naming, and any task where writing the
+  specification is the work
+- tiny obvious edits (roughly fewer than 20 changed lines)
+- session-only tools such as MCP, browser/computer use, password managers, and
+  account tooling
+- releases, publishing, version bumps, credentials, and secrets
+- the decision to land, pre-land gates, final review, and closeout evidence
 
-- **Goal:** the observable desired outcome.
-- **Scope:** repository path and files/modules to inspect or change.
-- **Constraints:** conventions, compatibility requirements, and files that must
-  not change.
-- **Non-goals:** explicitly exclude follow-on cleanup and unrelated changes.
-- **Proof:** exact tests, typechecks, linters, or manual checks to run.
-- **Report:** files changed, commands run with results, and unresolved risks.
-- **Stop condition:** finish only this work order; do not start adjacent tasks.
+Mixed task: Claude first decides the design and freezes a specification, then
+Grok builds it. Heuristic: if the prompt already reads like a work order,
+delegate; if writing it requires decisions, stay in Claude.
 
-Every hard prohibition needs an honest exit: if the worker cannot comply, it
-must stop and report why rather than bypassing the constraint.
+New work orders always use a **fresh** Grok session. Do not resume a long-lived
+session for unrelated work: stale sessions can reinterpret a new order as
+configuration or no-op. Portfolio or multi-repository work goes to the active
+session's designated maintainer/orchestrator skill when one exists. Otherwise
+Claude Code orchestrates the portfolio directly but delegates only separate,
+self-contained, per-repository Grok work orders; never ask one Grok worker to
+coordinate uncontrolled cross-repository work.
 
-## Invoke Grok Headlessly
+## Repository Instructions
 
-Use a temporary prompt file; do not put a multi-line work order in shell
-history or create a repository file merely to transport it.
+Before writing the work order, identify the repository's canonical instruction
+files and include their relevant constraints. Never create or modify `CLAUDE.md`,
+`AGENTS.md`, or other agent instruction files unless the user explicitly asks.
+If the repository designates one canonical file, point Grok to that file rather
+than duplicating its contents loosely.
+
+## Invoke
+
+Grok starts with no reliable Claude Code conversation context. Use a temporary
+prompt file, an explicit session ID, a fixed working directory, and per-worker
+result/log paths. Never put a multi-line work order in shell history.
 
 ```bash
 REPO="/absolute/path/to/repository"
+WORKER="feature-short-name"
+SID="$(uuidgen | tr '[:upper:]' '[:lower:]')"
 PROMPT="$(mktemp -t grok-first-prompt.XXXXXX)"
-OUT="$(mktemp -t grok-first-result.XXXXXX)"
+OUT="/tmp/grok-first-${WORKER}-${SID}.json"
+LOG="/tmp/grok-first-${WORKER}-${SID}.log"
+MAX_TURNS=30  # Set deliberately for this work order; reaching it is incomplete.
+
+cleanup() { rm -f "$PROMPT"; }
+trap cleanup EXIT HUP INT TERM
 
 cat >"$PROMPT" <<'EOF'
 Work only in <REPO>.
 
 Goal: <observable outcome>
-Scope: <paths/modules>
+Scope: <paths/modules to inspect or change>
+Repository instructions: <canonical instruction file and relevant rules>
 Constraints: <rules; do not touch X>
-Non-goals: <what not to do>
+Non-goals: <explicit exclusions>
 Proof: run <exact command(s)>.
 
-Finish this work order only. In the final report list files changed, commands
-run with their results, and remaining risks or blockers.
+Finish this work order only. If a constraint prevents an honest solution, STOP
+and report the exact blocker and numbers; do not work around the constraint.
+Do not start adjacent work or the next PR.
+
+Final report: files changed; commands run and their results; test output or
+failure details; remaining risks; blockers; and whether the work is ready for
+Claude Code review.
 EOF
 
-grok --no-auto-update \
+command grok --no-auto-update \
   --cwd "$REPO" \
+  --session-id "$SID" \
+  --no-memory \
+  --verbatim \
   --model grok-4.5 \
   --reasoning-effort high \
-  --max-turns 30 \
+  --max-turns "$MAX_TURNS" \
   --always-approve \
   --output-format json \
-  --prompt-file "$PROMPT" >"$OUT"
-
-cat "$OUT"
-rm -f "$PROMPT"
+  --prompt-file "$PROMPT" >"$OUT" 2>"$LOG"
 ```
 
-- `--prompt-file` avoids fragile shell quoting.
-- `--output-format json` yields one machine-readable completion result; inspect
-  the result file rather than parsing terminal chatter.
-- `--no-auto-update` prevents update checks from interrupting scripting or CI.
-- `--always-approve` is appropriate only for a scoped, trusted repository. Do
-  not use it for untrusted prompts, unknown directories, secrets, publishing,
-  or destructive work.
-- Pin `--model grok-4.5` and `--reasoning-effort high` unless the work order
-  deliberately chooses a different installed model.
+- `command grok` bypasses aliases.
+- `--prompt-file` avoids fragile quoting; `--verbatim` sends the work order
+  exactly as written; `--no-memory` keeps the fresh-session contract honest.
+- `--session-id` gives deterministic recovery. Never use `--continue` or an
+  argument-less `--resume` when workers can run in parallel.
+- `--output-format json` writes one machine-readable result. Inspect the result
+  file deliberately; do not flood Claude's context by blindly dumping logs.
+- `--no-auto-update` suppresses background update checks in documented headless
+  scripting use.
+- Pin `grok-4.5` and high reasoning unless the work order intentionally selects
+  a different locally available model.
+- Make `MAX_TURNS` task-specific. Hitting the maximum is incomplete evidence,
+  not success.
+- `--always-approve` is only for an explicit, trusted repository and a scoped
+  prompt. Prefer an isolated worktree for write tasks. Never use it for
+  untrusted prompts, unknown directories, secrets, publishing, or destructive
+  operations outside an explicitly approved land order.
 
-For an interactive or multi-turn investigation, start `grok --cwd "$REPO"`
-in a dedicated terminal instead. Do not use a stale headless session for an
-unrelated new task.
+For a long operation, launch the complete setup-and-Grok command as **one**
+Claude Code Bash tool call with `run_in_background: true`. Each worker gets its
+own tracked background call, unique `SID`, `OUT`, and `LOG`. Never fork multiple
+workers from a shared shell launcher: that makes them invisible orphan processes.
 
-## Review and Verification
+## Follow-up and Recovery
 
-Grok's report is evidence, not authority. Claude Code must:
-
-1. Inspect `git status --short` and the full diff.
-2. Check each changed file against the work order and repository instructions.
-3. Run the stated focused verification or inspect its real output.
-4. Ask Grok for one targeted follow-up only if needed; after repeated failed
-   attempts, take over directly rather than looping.
-5. Report completion only after the diff and evidence satisfy the original
-   request.
-
-## Follow-up Work
-
-For a correction that depends on the prior Grok result, use the session ID in
-the JSON output:
+A correction to the same bounded work order may resume its explicit session ID:
 
 ```bash
-grok --no-auto-update \
+FOLLOWUP="$(mktemp -t grok-first-followup.XXXXXX)"
+cat >"$FOLLOWUP" <<'EOF'
+Fix only <specific issue>. Do not broaden scope. Re-run <exact verification>.
+Report changed files, command output, and any remaining blocker.
+EOF
+
+command grok --no-auto-update \
   --cwd "$REPO" \
-  --resume "<session-id>" \
+  --resume "$SID" \
+  --no-memory \
+  --verbatim \
   --always-approve \
   --output-format json \
-  -p "Fix only <specific issue>. Re-run <exact verification> and report the result."
+  --prompt-file "$FOLLOWUP" >"$OUT" 2>"$LOG"
+rm -f "$FOLLOWUP"
 ```
 
-Use a fresh session for a new work order. A resumed session should only repair
-or complete the same bounded task.
+Monitor the tracked background command for completion. Do not treat a quiet log
+as proof of a hang: Grok's documented logging does not promise a reasoning
+heartbeat. Instead, set a task-specific wall-clock deadline before launch. At
+the deadline, inspect whether the tracked worker/process is still active: if it
+is, report a liveness incident, cancel that tracked worker, and resume the exact
+`SID` with a narrowly scoped continuation prompt. Do not kill merely because
+stdout or stderr has been quiet. If the active harness cannot inspect/cancel a
+tracked job, do not claim watchdog coverage; timebox the delegation and return
+control to Claude for an explicit recovery decision. After two unsuccessful
+correction rounds, Claude takes over directly rather than looping.
 
-## Common Pitfalls
+## Prompt Contract
 
-1. **Delegating an ambiguous task.** Resolve design choices before delegating;
-   otherwise Grok must invent product or architecture decisions.
-2. **Giving Grok no proof command.** A diff without real verification is not
-   complete. State the command or desired evidence in the work order.
-3. **Blindly trusting JSON success.** `stopReason: EndTurn` means the model
-   stopped; it does not prove that the repository change is correct.
-4. **Using `--always-approve` outside the stated scope.** It allows Grok to run
-   tools freely. Keep its `--cwd` fixed and never include secrets in prompts.
-5. **Running concurrently in the same checkout.** Use separate worktrees for
-   independent write tasks. Parallel read-only exploration is safe.
-6. **Letting auto-updates disturb automation.** Keep `--no-auto-update` on all
-   headless invocations.
+Every work order contains:
+
+- **Goal:** observable desired outcome.
+- **Scope:** repository path and exact relevant paths/modules.
+- **Repository rules:** canonical instruction file and constraints that apply.
+- **Constraints and non-goals:** including files that must not change.
+- **Proof:** exact test, typecheck, lint, CI, or manual verification command.
+- **Report shape:** changed files, real command results, risks, and blockers.
+- **Stop condition:** complete only this order; do not begin adjacent work.
+
+Every hard prohibition needs a sanctioned escape hatch. Pair “do not change X”
+with “if X blocks an honest solution, stop and report why; do not work around
+it.” A stop-report is a successful coordination result, not a failed worker.
+
+For a multi-PR series, reuse the same frozen skeleton, cite landed precedents
+and their idioms, carry newly discovered traps into the next order, and end
+every order with an explicit instruction not to begin the next PR.
+
+## Parallel Workers, One Repository
+
+Parallelize only independent tasks. For concurrent write work, use one fresh
+worktree and distinctive branch per worker, based on `origin/main`; Grok's
+verified `--worktree <name>` and `--worktree-ref origin/main` can create the
+isolation. Give every worker its own tracked background launch, worktree,
+branch, `SID`, prompt, output, and log.
+
+Use one shared frozen specification plus a target-specific header per worker.
+Landing serializes on the repository's land-workflow lock: if a worker finds a
+held lock, it backs off, waits, and retries the failed step. It never recovers a
+lock it did not create or repeatedly chases `main` while sibling PRs land.
+
+For a sequential PR series, reuse one worktree but rebranch from current
+`origin/main` for each next PR.
+
+## Coordinator Verification
+
+Grok's report is evidence, not authority. After every worker run, Claude Code
+must:
+
+1. Inspect `git status --short` and the full diff; judge it as a contributor PR.
+2. Check every changed file against the work order and canonical repository
+   instructions.
+3. Run focused proof itself or inspect the real command output. A model claim is
+   advisory, not verification.
+4. For a landed PR, verify against merged `origin/main`, not the worker report:
+   read the actual public surface and naming; inspect squash history; diff-stat
+   forbidden guard/budget/baseline files; and scrutinize test-helper edits that
+   could hide an incomplete migration.
+5. Run an independent frozen-change review before any ship or land. Use the
+   repository's documented review workflow when it has one; otherwise Claude
+   Code performs a fresh review pass distinct from the worker's report. This is
+   mandatory even though Grok has no verified built-in `autoreview` command.
+6. Iterate with the exact session ID only when a focused correction is justified;
+   after two failures, take over directly.
 
 ## Completion Checklist
 
-- [ ] Grok was launched with an explicit `--cwd` and self-contained prompt.
-- [ ] The output JSON was captured and its session ID retained when follow-up is likely.
-- [ ] Claude Code inspected the actual diff, not just Grok's summary.
-- [ ] Required verification was run and its result is known.
-- [ ] No work outside the specified scope remains unreviewed.
+- [ ] Claude Code passed the hard gate and used an explicit repository path.
+- [ ] The work order was self-contained, frozen, and included proof plus a stop condition.
+- [ ] The worker used a fresh explicit session ID, `--no-memory`, and unique output/log paths.
+- [ ] Parallel write workers used separate worktrees and branches.
+- [ ] Any push/land operation was explicitly approved, attached to the exact head
+  SHA, and reached successful/green CI before land.
+- [ ] Claude inspected the complete diff and real verification evidence.
+- [ ] A landed change was checked on merged `origin/main` and passed a mandatory
+  independent frozen-change review plus any required repository closeout review.
+
+## Economics
+
+Win by moving generation and read-heavy exploration to Grok while Claude spends
+tokens on the work order, actual changed surfaces, and verification. Do not
+ping-pong trivia through delegation or reprocess Grok's narrative when the diff
+and proof already answer the question.
