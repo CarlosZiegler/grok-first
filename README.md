@@ -27,25 +27,27 @@ grok --no-auto-update -p "Reply with exactly: GROK_OK" --output-format json
 
 ## Install
 
-### Global Claude Code skill
+Install globally for Claude Code through [skills.sh](https://skills.sh):
 
 ```bash
-git clone https://github.com/CarlosZiegler/grok-first.git ~/src/grok-first
-mkdir -p ~/.claude/skills
-ln -s ~/src/grok-first/skills/grok-first ~/.claude/skills/grok-first
+npx skills add CarlosZiegler/grok-first \
+  --skill grok-first \
+  --agent claude-code \
+  --global \
+  --yes
 ```
 
-Restart Claude Code after installation so it discovers the new skill.
+This installs only the `grok-first` package for Claude Code. Restart Claude Code
+afterward so it discovers the new skill.
 
-### Project-only skill
-
-Copy the skill into a repository when the routing policy should be shared with that project:
+To opt out of the skills CLI's anonymous install telemetry:
 
 ```bash
-mkdir -p .claude/skills
-git clone https://github.com/CarlosZiegler/grok-first.git /tmp/grok-first
-cp -R /tmp/grok-first/skills/grok-first .claude/skills/grok-first
-rm -rf /tmp/grok-first
+DISABLE_TELEMETRY=1 npx skills add CarlosZiegler/grok-first \
+  --skill grok-first \
+  --agent claude-code \
+  --global \
+  --yes
 ```
 
 ## Usage in Claude Code
