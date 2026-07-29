@@ -4,6 +4,10 @@ A Claude Code skill that delegates scoped implementation work to [Grok Build CLI
 
 It is an original, Grok-specific alternative to a “codex-first” routing workflow: Claude writes an explicit work order; Grok executes it headlessly; Claude inspects the diff and proof before accepting it.
 
+## Inspiration
+
+This skill is inspired by [Peter Steinberger’s `codex-first` skill](https://github.com/steipete/agent-scripts/blob/main/skills/codex-first/SKILL.md) from [`steipete/agent-scripts`](https://github.com/steipete/agent-scripts). It adapts that delegation discipline for Grok Build CLI and deliberately replaces Codex-specific commands and routing behavior with verified Grok Build capabilities.
+
 ## What it does
 
 - Routes clear implementation, repair, refactor, test, and exploration work to `grok`.
