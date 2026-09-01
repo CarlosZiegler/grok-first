@@ -12,7 +12,7 @@ This skill is inspired by [Peter Steinberger’s `codex-first` skill](https://gi
 
 - Routes clear implementation, repair, refactor, test, and exploration work to `grok`.
 - Uses Grok's documented headless mode: `--prompt-file`, `--cwd`, JSON output, session resumption, and `--no-auto-update`.
-- Pins Grok Build to `grok-4.5` with high reasoning effort by default.
+- Pins Grok Build to `grok-4.6` with extra-high reasoning effort (`xhigh`) by default.
 - Requires an explicit repository scope and a self-contained work order.
 - Keeps architecture, releases, secrets, destructive operations, and final review in Claude Code.
 
