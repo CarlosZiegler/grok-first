@@ -1,7 +1,7 @@
 ---
 name: grok-first
 description: "Use when Claude Code should delegate implementation, fixes, exploration, and approved git mechanics to Grok Build CLI while Claude specifies, decides, reviews, and verifies."
-version: 1.1.0
+version: 1.2.0
 author: Carlos Ziegler
 license: MIT
 metadata:
@@ -134,8 +134,8 @@ command grok --no-auto-update \
   --session-id "$SID" \
   --no-memory \
   --verbatim \
-  --model grok-4.5 \
-  --reasoning-effort high \
+  --model grok-4.6 \
+  --reasoning-effort xhigh \
   --max-turns "$MAX_TURNS" \
   --always-approve \
   --output-format json \
@@ -151,8 +151,8 @@ command grok --no-auto-update \
   file deliberately; do not flood Claude's context by blindly dumping logs.
 - `--no-auto-update` suppresses background update checks in documented headless
   scripting use.
-- Pin `grok-4.5` and high reasoning unless the work order intentionally selects
-  a different locally available model.
+- Pin `grok-4.6` and extra-high reasoning (`xhigh`) unless the work order
+  intentionally selects a different locally available model.
 - Make `MAX_TURNS` task-specific. Hitting the maximum is incomplete evidence,
   not success.
 - `--always-approve` is only for an explicit, trusted repository and a scoped
