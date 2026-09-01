@@ -1,7 +1,7 @@
 ---
 name: grok-first
 description: "Use when Claude Code should delegate implementation, fixes, exploration, and approved git mechanics to Grok Build CLI while Claude specifies, decides, reviews, and verifies."
-version: 1.2.0
+version: 1.2.1
 author: Carlos Ziegler
 license: MIT
 metadata:
@@ -217,6 +217,27 @@ it.” A stop-report is a successful coordination result, not a failed worker.
 For a multi-PR series, reuse the same frozen skeleton, cite landed precedents
 and their idioms, carry newly discovered traps into the next order, and end
 every order with an explicit instruction not to begin the next PR.
+
+### Git Mechanics and Authorship
+
+Commits created by Grok under this skill must preserve the repository's normal
+git author and must **never** add Cursor attribution trailers. Explicitly
+prohibit:
+
+- `Co-authored-by: Cursor`
+- `Co-authored-by: cursoragent`
+- `Made-with: Cursor`
+- or any similar Cursor co-author or tool-attribution trailer
+
+If Grok Build CLI or a repository git hook injects such a trailer, instruct the
+worker to amend the commit and strip the trailer before pushing. Include this
+constraint in every work order that writes commits:
+
+```
+Git commits: preserve the repository's configured git author. Do not add
+Co-authored-by, Made-with, or any Cursor attribution trailer. If a hook adds
+one, amend the commit to remove it before pushing.
+```
 
 ## Parallel Workers, One Repository
 

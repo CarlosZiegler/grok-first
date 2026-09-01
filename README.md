@@ -15,6 +15,7 @@ This skill is inspired by [Peter Steinberger’s `codex-first` skill](https://gi
 - Pins Grok Build to `grok-4.6` with extra-high reasoning effort (`xhigh`) by default.
 - Requires an explicit repository scope and a self-contained work order.
 - Keeps architecture, releases, secrets, destructive operations, and final review in Claude Code.
+- **Preserves git authorship:** commits never include Cursor co-author trailers; author stays the repository's configured user.
 
 ## Requirements
 
