@@ -99,10 +99,31 @@ prompt file, an explicit session ID, a fixed working directory, and per-worker
 result/log paths. Never put a multi-line work order in shell history.
 
 ```bash
+set -euo pipefail
+umask 077
+
 REPO="/absolute/path/to/repository"
 WORKER="feature-short-name"
+
+command -v uuidgen >/dev/null 2>&1 || {
+  echo "uuidgen is required" >&2
+  exit 1
+}
+command -v mktemp >/dev/null 2>&1 || {
+  echo "mktemp is required" >&2
+  exit 1
+}
+
 SID="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+[ -n "$SID" ] || {
+  echo "failed to create a session ID" >&2
+  exit 1
+}
 PROMPT="$(mktemp -t grok-first-prompt.XXXXXX)"
+[ -n "$PROMPT" ] || {
+  echo "failed to create a prompt file" >&2
+  exit 1
+}
 OUT="/tmp/grok-first-${WORKER}-${SID}.json"
 LOG="/tmp/grok-first-${WORKER}-${SID}.log"
 MAX_TURNS=30  # Set deliberately for this work order; reaching it is incomplete.
